@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/cloudflare'
 import { Form, useFetcher, useLoaderData } from '@remix-run/react'
 import { events } from 'fetch-event-stream'
-import { hc } from 'hono/client'
 import { AlertTriangle, Bot, Send } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEventHandler, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
@@ -15,8 +14,8 @@ import { Input } from '~/components/ui/input'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { clearMessagesCache, getCachedMessages } from '~/lib/messages-cache'
 
-import type { AppType } from '../../server'
 import { scrollToBottom } from '~/lib/utils'
+import type { Action as CompletionAction } from '~/routes/api.completion'
 
 type ChatMessage = {
   id: string
@@ -62,8 +61,6 @@ const responseSchema = z.object({
   done: z.boolean(),
 })
 
-const client = hc<AppType>('/')
-
 export default function Index() {
   const scrollRef = useRef<HTMLUListElement>(null)
   const { messages: data } = useLoaderData<typeof loader>()
@@ -103,10 +100,11 @@ export default function Index() {
     setValue('message', '')
 
     const abort = new AbortController()
-    const res = await client.api.completion.$post(
-      { json: { message: data.message } },
-      { init: { signal: abort.signal } },
-    )
+    const res = await fetch('/api/completion', {
+      signal: abort.signal,
+      method: 'POST',
+      body: JSON.stringify({ message: data.message }),
+    })
 
     if (!res.ok) {
       setMessages((prev) =>
